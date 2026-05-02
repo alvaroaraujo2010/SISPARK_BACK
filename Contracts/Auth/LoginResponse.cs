@@ -4,4 +4,5 @@ public record LoginResponse(
     string Token,
     DateTime ExpiresAt,
     string FullName,
-    string Username);
+    string Username,
+    string Role);

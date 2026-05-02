@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using sispark_api.Configuration;
 using sispark_api.Domain.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -6,15 +8,13 @@ using System.Text;
 
 namespace sispark_api.Services;
 
-public class JwtTokenService(IConfiguration configuration)
+public class JwtTokenService(IOptions<JwtOptions> jwtOptions)
 {
+    private readonly JwtOptions options = jwtOptions.Value;
+
     public (string token, DateTime expiresAt) CreateToken(Usuario user)
     {
-        var issuer = configuration["Jwt:Issuer"]!;
-        var audience = configuration["Jwt:Audience"]!;
-        var key = configuration["Jwt:Key"]!;
-        var expirationMinutes = configuration.GetValue<int>("Jwt:ExpirationMinutes");
-        var expiresAt = DateTime.UtcNow.AddMinutes(expirationMinutes);
+        var expiresAt = DateTime.UtcNow.AddMinutes(options.ExpirationMinutes);
 
         var claims = new List<Claim>
         {
@@ -24,13 +24,18 @@ public class JwtTokenService(IConfiguration configuration)
             new(ClaimTypes.NameIdentifier, user.IdUsuario.ToString())
         };
 
+        if (!string.IsNullOrWhiteSpace(user.Rol?.Nombre))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, user.Rol.Nombre));
+        }
+
         var credentials = new SigningCredentials(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.Key)),
             SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
+            issuer: options.Issuer,
+            audience: options.Audience,
             claims: claims,
             expires: expiresAt,
             signingCredentials: credentials);
